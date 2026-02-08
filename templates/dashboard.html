@@ -2,143 +2,158 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Jugnuu Kitchen Board</title>
+    <title>Jugnuu Kitchen Live Board</title>
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        :root { --accent: #e67e22; --dark: #2c3e50; --red: #c0392b; }
-        body { font-family: 'Poppins', sans-serif; background: #f4f7f6; padding: 20px; margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
         
-        /* NOTIFICATIONS */
-        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 10000; width: 340px; }
-        .floating-alert {
-            background: white; border-radius: 8px; padding: 16px; margin-bottom: 12px;
-            display: flex; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
-            border-right: 8px solid var(--red); border-left: 1px solid #eee;
-            animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        /* Sales Theme Background & Typography */
+        body { 
+            background: radial-gradient(circle at top left, #1e293b, #0f172a); 
+            color: white; 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            min-height: 100vh;
+            margin: 0; padding: 20px;
         }
-        .alert-icon { font-size: 28px; margin-right: 15px; }
-        .btn-ok { margin-top: 10px; background: var(--red); color: white; border: none; padding: 5px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
 
-        @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
-        @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+        /* Glassmorphism Card Style */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
 
         /* DASHBOARD TABLE */
-        .kitchen-table { width: 100%; background: white; border-collapse: collapse; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .kitchen-table th { background: var(--dark); color: white; padding: 15px; text-align: left; }
-        .kitchen-table td { padding: 12px 15px; border-bottom: 1px solid #eee; }
-        .order-start { border-top: 4px solid var(--accent) !important; background-color: #fffaf5; }
-        .qty-badge { background: var(--accent); color: white; padding: 4px 10px; border-radius: 5px; font-weight: bold; }
-        .btn-action { padding: 8px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; border: none; }
-        .btn-print { background: #ecf0f1; color: var(--dark); margin-right: 5px; }
-        .btn-done { background: var(--dark); color: white; }
+        .kitchen-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .kitchen-table th { 
+            background: rgba(0,0,0,0.2); color: #94a3b8; padding: 15px; text-align: left; 
+            text-transform: uppercase; font-size: 12px; letter-spacing: 1px;
+        }
+        .kitchen-table td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        
+        /* Row Highlighting */
+        .order-start { border-top: 3px solid #eab308 !important; background: rgba(234, 179, 8, 0.03); }
+        
+        /* Badges & Buttons */
+        .qty-badge { 
+            background: rgba(234, 179, 8, 0.1); color: #eab308; 
+            padding: 4px 12px; border-radius: 8px; font-weight: 800; border: 1px solid rgba(234, 179, 8, 0.2);
+        }
+        .btn-action { padding: 8px 15px; border-radius: 10px; cursor: pointer; font-weight: bold; border: none; transition: all 0.2s; }
+        .btn-print { background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); margin-right: 5px; }
+        .btn-print:hover { background: rgba(255,255,255,0.1); }
+        .btn-done { background: #eab308; color: #000; }
+        .btn-done:hover { background: #fde047; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(234,179,8,0.3); }
 
-        /* --- THE PERFECT PRINT AREA --- */
+        /* NOTIFICATIONS (Matching Sales Popups) */
+        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 10000; width: 340px; }
+        .floating-alert {
+            background: #1e293b; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+            display: flex; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            border: 1px solid #eab308; animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        .alert-icon { font-size: 28px; margin-right: 15px; }
+        .btn-ok { margin-top: 10px; background: rgba(255,255,255,0.1); color: white; border: none; padding: 5px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 11px; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* --- PRINT AREA (Kept exactly as original) --- */
         @media print {
             body * { visibility: hidden; }
             #kot-print-area, #kot-print-area * { visibility: visible; }
-            #kot-print-area { 
-                position: absolute; left: 0; top: 0; width: 100%; 
-                display: block !important; padding: 0; margin: 0; 
-            }
+            #kot-print-area { position: absolute; left: 0; top: 0; width: 100%; display: block !important; padding: 0; margin: 0; }
         }
-        
-        #kot-print-area { 
-            display: none; 
-            width: 72mm; /* Standard Thermal Width */
-            font-family: 'Courier New', Courier, monospace; 
-            color: black; 
-            padding: 5px;
-        }
-
+        #kot-print-area { display: none; width: 72mm; font-family: 'Courier New', monospace; color: black; padding: 5px; }
         .print-header { text-align: center; border-bottom: 1px dashed #000; padding-bottom: 5px; }
-        
-        /* Flexbox for Table & Time to prevent overlap */
-        .print-meta { 
-            display: flex !important; 
-            justify-content: space-between !important; 
-            font-weight: bold; 
-            font-size: 15px;
-            margin: 5px 0;
-            white-space: nowrap;
-        }
-
-        .kot-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            table-layout: fixed; /* Prevents column expansion */
-        }
-        
+        .print-meta { display: flex !important; justify-content: space-between !important; font-weight: bold; font-size: 15px; margin: 5px 0; }
+        .kot-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
         .kot-table th { border-bottom: 1px dashed #000; padding: 5px 0; font-size: 13px; }
         .kot-table td { padding: 6px 0; vertical-align: top; font-size: 14px; border-bottom: 0.5px solid #eee; }
-
-        /* COLUMN WIDTHS */
         .col-sr { width: 25px; }
-        .col-qty { width: 45px; text-align: right; font-weight: bold; white-space: nowrap; }
-        .col-name { 
-            word-wrap: break-word; /* Allows long items to wrap to line 2 */
-            overflow-wrap: break-word;
-            text-transform: uppercase;
-            padding-right: 5px;
-        }
-
-        .print-footer { text-align: center; font-size: 12px; margin-top: 15px; border-top: 1px dashed #000; padding-top: 5px; }
+        .col-qty { width: 45px; text-align: right; font-weight: bold; }
+        .col-name { word-wrap: break-word; text-transform: uppercase; padding-right: 5px; }
     </style>
 </head>
 <body>
 
     <div id="notification-container"></div>
 
-    <h1 style="text-align: center; color: var(--dark);">👨‍🍳 Jugnuu Kitchen Live Board</h1>
-    
-    <table class="kitchen-table">
-        <thead>
-            <tr>
-                <th style="width: 50px;">Sr.</th>
-                <th style="width: 120px;">Table</th>
-                <th>Item Name</th>
-                <th style="width: 80px;">Qty</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% set count = namespace(value=1) %}
-            {% if active_orders %}
-                {% for order in active_orders %}
-                    {% set items = order[2].split(', ') %}
-                    {% for item_str in items %}
-                        {% set parts = item_str.split(' x') %}
-                        <tr class="{{ 'order-start' if loop.first else '' }}">
-                            <td style="font-weight: bold;">{{ count.value }}</td>
-                            <td>{% if loop.first %}<strong>Table {{ order[1] }}</strong>{% endif %}</td>
-                            <td style="font-weight: 500;">{{ parts[0] }}</td>
-                            <td><span class="qty-badge">x{{ parts[1] if parts|length > 1 else '1' }}</span></td>
-                            <td>
-                                {% if loop.first %}
-                                    <button class="btn-action btn-print" onclick="preparePrint('{{ order[1] }}', '{{ order[2] }}')">🖨️</button>
-                                    <button class="btn-action btn-done" onclick="markServed({{ order[0] }})">DONE</button>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% set count.value = count.value + 1 %}
-                    {% endfor %}
-                {% endfor %}
-            {% else %}
-                <tr><td colspan="5" style="text-align:center; padding: 40px; color: gray;">No Pending Orders</td></tr>
-            {% endif %}
-        </tbody>
-    </table>
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-end mb-10 no-print">
+            <div>
+                <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500">
+                    JUGNUU KITCHEN LIVE BOARD
+                </h1>
+                <p class="text-slate-400">Real-time Order Management</p>
+            </div>
+            <div class="text-slate-500 text-sm font-bold flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                SYSTEM ACTIVE
+            </div>
+        </div>
+        
+        <div class="glass-card overflow-hidden no-print">
+            <table class="kitchen-table">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Sr.</th>
+                        <th style="width: 140px;">Table</th>
+                        <th>Item Name</th>
+                        <th style="width: 100px;">Qty</th>
+                        <th style="width: 150px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set count = namespace(value=1) %}
+                    {% if active_orders %}
+                        {% for order in active_orders %}
+                            {% set items = order[2].split(', ') %}
+                            {% for item_str in items %}
+                                {% set parts = item_str.split(' x') %}
+                                <tr class="{{ 'order-start' if loop.first else '' }}">
+                                    <td class="font-bold text-slate-500">{{ count.value }}</td>
+                                    <td>
+                                        {% if loop.first %}
+                                            <span class="text-yellow-500 font-extrabold text-lg">Table {{ order[1] }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-slate-100 font-semibold">{{ parts[0] }}</td>
+                                    <td><span class="qty-badge">x{{ parts[1] if parts|length > 1 else '1' }}</span></td>
+                                    <td>
+                                        {% if loop.first %}
+                                            <div class="flex gap-2">
+                                                <button class="btn-action btn-print" onclick="preparePrint('{{ order[1] }}', '{{ order[2] }}')">
+                                                    <i class="fa fa-print"></i>
+                                                </button>
+                                                <button class="btn-action btn-done" onclick="markServed({{ order[0] }})">DONE</button>
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% set count.value = count.value + 1 %}
+                            {% endfor %}
+                        {% endfor %}
+                    {% else %}
+                        <tr><td colspan="5" class="text-center py-20 text-slate-500 font-medium">No Pending Orders</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 
     <div id="kot-print-area">
         <div class="print-header">
             <h2 style="margin:0; font-size: 18px;">KITCHEN ORDER</h2>
             <span>Hotel Jugnuu</span>
         </div>
-        
         <div class="print-meta">
             <span>TABLE: <span id="p-table"></span></span>
             <span id="p-time"></span>
         </div>
-        
         <table class="kot-table">
             <thead>
                 <tr>
@@ -149,7 +164,6 @@
             </thead>
             <tbody id="p-items"></tbody>
         </table>
-
         <div class="print-footer">
             <p style="margin: 0; font-weight: bold;">*** Kitchen Copy ***</p>
             <p id="p-date" style="margin: 2px 0; font-size: 10px;"></p>
@@ -161,17 +175,16 @@
         let audioUnlocked = false;
         document.addEventListener('click', () => { audioUnlocked = true; }, { once: true });
 
-        // Logic for alerts
         function showFloatingAlert(title, msg, type) {
             const container = document.getElementById('notification-container');
             const alertDiv = document.createElement('div');
             alertDiv.className = 'floating-alert';
             alertDiv.innerHTML = `
-                <div class="alert-icon">${type === 'ORDER' ? '🛎️' : '📢'}</div>
+                <div class="alert-icon">${type === 'ORDER' ? '🔔' : '📢'}</div>
                 <div class="alert-content">
-                    <p style="margin:0; font-weight:800; color:var(--red);">${title}</p>
-                    <p style="margin:4px 0; font-size:13px;">${msg}</p>
-                    <button class="btn-ok" onclick="this.parentElement.parentElement.remove()">OK</button>
+                    <p style="margin:0; font-weight:800; color:#eab308; text-transform:uppercase; font-size:12px;">${title}</p>
+                    <p style="margin:4px 0; font-size:14px; font-weight:600;">${msg}</p>
+                    <button class="btn-ok" onclick="this.parentElement.parentElement.remove()">Okay</button>
                 </div>`;
             container.appendChild(alertDiv);
             if(audioUnlocked) new Audio('https://assets.mixkit.co/sfx/preview/mixkit-service-bell-ring-982.mp3').play();
@@ -185,7 +198,6 @@
             location.reload();
         }
 
-        // PERFECT PRINTING LOGIC
         function preparePrint(table, rawItems) {
             document.getElementById('p-table').innerText = table;
             document.getElementById('p-time').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -199,7 +211,6 @@
                 const parts = item.split(' x');
                 const name = parts[0];
                 const qty = parts[1] ? 'x' + parts[1] : 'x1';
-                
                 tbody.innerHTML += `
                     <tr>
                         <td class="col-sr">${index+1}.</td>
