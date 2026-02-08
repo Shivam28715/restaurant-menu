@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Staff Login - Hotel Jugnuu</title>
+    <style>
+        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #2c3e50; margin: 0; }
+        .login-box { background: white; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; background: #e67e22; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>Hotel Jugnuu🍽️</h2>
+        <p>Staff Access Only</p>
+        <input type="password" id="pass" placeholder="Enter Admin Password">
+        <button onclick="login()">Enter Dashboard</button>
+    </div>
+
+    <script>
+        async function login() {
+            const password = document.getElementById('pass').value;
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({password: password})
+            });
+            if (res.redirected) {
+                window.location.href = res.url;
+            } else {
+                alert("Wrong Password!");
+            }
+        }
+    </script>
+</body>
+</html>

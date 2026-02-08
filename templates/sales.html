@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daily Sales Report</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f2f5; padding: 40px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .stat-card h2 { color: #555; font-size: 1rem; }
+        .stat-card p { font-size: 2rem; font-weight: bold; color: #28a745; margin: 10px 0; }
+        .btn-back { display: inline-block; margin-top: 20px; text-decoration: none; color: #007bff; }
+    </style>
+</head>
+<body>
+    <h1>📈Hotel Jugnuu🍽️ Performance</h1>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h2>Total Revenue</h2>
+            <p>${{ revenue }}</p>
+        </div>
+        <div class="stat-card">
+            <h2>Orders Completed</h2>
+            <p>{{ count }}</p>
+        </div>
+        <div class="stat-card">
+            <h2>Top Item</h2>
+            <p style="color: #007bff; font-size: 1.5rem;">{{ best_seller }}</p>
+        </div>
+    </div>
+    <a href="/billing" class="btn-back">← Back to Billing</a>
+</body>
+</html>

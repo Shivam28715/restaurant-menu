@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hotel Jugnuu - Billing Board</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root { 
+            --accent: #e67e22; 
+            --success: #27ae60;
+            --dark: #2c3e50;
+            --blue: #3498db;
+            --red: #c0392b; 
+        }
+
+        body { 
+            font-family: 'Poppins', sans-serif; 
+            margin: 0; padding: 20px;
+            background-color: #f8f9fa;
+        }
+
+        /* --- NOTIFICATIONS --- */
+        #notification-container { position: fixed; top: 20px; right: 20px; z-index: 10000; width: 340px; }
+        .floating-alert {
+            background: white; border-radius: 8px; padding: 16px; margin-bottom: 12px;
+            display: flex; align-items: center; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            border-right: 8px solid var(--red); border-left: 1px solid #eee;
+            animation: slideIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        .alert-icon { font-size: 28px; margin-right: 15px; }
+        .alert-title { font-weight: 800; font-size: 14px; margin: 0; color: var(--red); text-transform: uppercase; letter-spacing: 1px; }
+        .alert-msg { font-size: 13px; margin: 4px 0 0 0; color: var(--dark); font-weight: 500; }
+        .btn-ok { margin-top: 10px; background: var(--red); color: white; border: none; padding: 5px 15px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+
+        /* --- DASHBOARD UI --- */
+        h1 { text-align: center; font-family: 'Playfair Display', serif; color: var(--dark); border-bottom: 2px solid var(--accent); padding-bottom: 10px; }
+        .billing-board { width: 100%; background: white; border-collapse: collapse; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.1); margin-top: 20px; }
+        .billing-board th { background: var(--dark); color: white; padding: 15px; text-align: left; }
+        .billing-board td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+        .order-row-start { border-top: 3px solid var(--accent) !important; }
+        .qty-badge { background: #fff3e0; color: var(--accent); padding: 4px 10px; border-radius: 6px; font-weight: 800; }
+        .btn-action { padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-print { background: #eee; color: var(--dark); margin-right: 5px; }
+        .btn-paid { background: var(--dark); color: white; }
+
+        /* --- PERFECT PRINT STYLING --- */
+        @media print {
+            body * { visibility: hidden; }
+            #print-receipt, #print-receipt * { visibility: visible; }
+            #print-receipt { position: absolute; left: 0; top: 0; width: 100%; display: block !important; }
+        }
+
+        #print-receipt { 
+            display: none; 
+            width: 72mm; /* Standard Thermal Paper width */
+            padding: 5px; 
+            font-family: 'Courier New', Courier, monospace; 
+            color: black; 
+        }
+        
+        .receipt-header { text-align: center; margin-bottom: 10px; }
+        .receipt-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        .receipt-table th { border-bottom: 1px dashed #000; text-align: left; padding: 5px 0; }
+        .receipt-table td { padding: 5px 0; vertical-align: top; }
+        
+        /* Fixed Column Widths for alignment */
+        .col-sr { width: 20px; }
+        .col-qty { width: 40px; text-align: right; white-space: nowrap; }
+        .col-name { word-break: break-word; text-transform: uppercase; }
+        
+        .total-section { 
+            border-top: 1px dashed #000; 
+            margin-top: 10px; 
+            padding-top: 5px; 
+            text-align: right; 
+        }
+    </style>
+</head>
+<body>
+    <div id="notification-container"></div>
+
+    <h1 class="no-print">💰 Jugnuu Billing Board</h1>
+    
+    <table class="billing-board no-print">
+        <thead>
+            <tr>
+                <th>Sr. No.</th>
+                <th>Table</th>
+                <th>Item Name</th>
+                <th>Qty</th>
+                <th>Price (Ref)</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in active_orders %}
+                {% set outer_loop = loop %}
+                {% set items = order[2].split(', ') %}
+                
+                {% for raw_item in items %}
+                    {% set item_parts = raw_item.split(' x') %}
+                    <tr class="{{ 'order-row-start' if loop.first else '' }} {{ 'order-row-bg' if outer_loop.index is odd else 'order-row-alt' }}">
+                        <td style="font-weight: bold;">{{ outer_loop.index if loop.first else "" }}</td>
+                        <td style="color: var(--accent); font-weight: 600;">{{ "Table " ~ order[1] if loop.first else "" }}</td>
+                        <td>{{ item_parts[0] }}</td>
+                        <td><span class="qty-badge">x{{ item_parts[1] if item_parts|length > 1 else '1' }}</span></td>
+                        <td style="font-weight: 600;">
+                            {% if loop.first %}
+                                ₹{{ order[3] }} <small style="display:block; color:#999; font-weight:normal;">Total Bill</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if loop.first %}
+                            <button class="btn-action btn-print" onclick="printBill('{{ order[1] }}', '{{ order[2] }}', '{{ order[3] }}')">🖨️</button>
+                            <button class="btn-action btn-paid" onclick="clearTable({{ order[0] }}, '{{ order[1] }}')">PAID</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div id="print-receipt">
+        <div class="receipt-header">
+            <h2 style="margin: 0; font-size: 18px;">HOTEL JUGNUU</h2>
+            <p style="margin: 2px 0;">Cash Memo</p>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 10px;">
+                <span>Table: <span id="r-table"></span></span>
+                <span id="r-time"></span>
+            </div>
+        </div>
+        
+        <table class="receipt-table">
+            <thead>
+                <tr>
+                    <th class="col-sr">#</th>
+                    <th class="col-name">Item</th>
+                    <th class="col-qty">Qty</th>
+                </tr>
+            </thead>
+            <tbody id="r-items"></tbody>
+        </table>
+
+        <div class="total-section">
+            <h3 style="margin: 0; font-size: 16px;">TOTAL: ₹<span id="r-total"></span></h3>
+        </div>
+
+        <div style="text-align: center; margin-top: 15px; font-size: 11px;">
+            <p id="r-date" style="margin: 0;"></p>
+            <p style="margin: 5px 0; font-weight: bold;">Thank You! Visit Again</p>
+            <p>*** Kitchen Copy ***</p>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let audioUnlocked = false;
+        document.addEventListener('click', () => { audioUnlocked = true; }, { once: true });
+
+        function printBill(table, itemString, total) {
+            document.getElementById('r-table').innerText = table;
+            document.getElementById('r-total').innerText = total;
+            document.getElementById('r-date').innerText = new Date().toLocaleDateString();
+            document.getElementById('r-time').innerText = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            let html = "";
+            let items = itemString.split(', ');
+            
+            items.forEach((item, i) => {
+                // Split "Item Name x3" into ["Item Name", "3"]
+                let parts = item.split(' x');
+                let name = parts[0];
+                let qty = parts[1] ? 'x' + parts[1] : 'x1';
+                
+                html += `
+                    <tr>
+                        <td class="col-sr">${i+1}.</td>
+                        <td class="col-name">${name}</td>
+                        <td class="col-qty">${qty}</td>
+                    </tr>`;
+            });
+            
+            document.getElementById('r-items').innerHTML = html;
+            window.print();
+        }
+
+        // Logic for waiter alerts and clear table
+        socket.on('new_order_alert', (data) => showFloatingAlert("New Order", "Table " + data.table, "ORDER"));
+        socket.on('waiter_call_alert', (data) => showFloatingAlert("Waiter!", "Table " + data.table, "WAITER"));
+
+        function showFloatingAlert(title, msg, type) {
+            const container = document.getElementById('notification-container');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'floating-alert';
+            alertDiv.innerHTML = `<div class="alert-icon">🛎️</div><div class="alert-content">
+                <p class="alert-title">${title}</p><p class="alert-msg">${msg}</p>
+                <button class="btn-ok" onclick="this.parentElement.parentElement.remove()">OK</button></div>`;
+            container.appendChild(alertDiv);
+        }
+
+        async function clearTable(orderId, tableNum) {
+            if(!confirm(`Close Table ${tableNum}?`)) return;
+            const response = await fetch(`/checkout/${orderId}`, { method: 'POST' });
+            if(response.ok) location.reload();
+        }
+    </script>
+</body>
+</html>
