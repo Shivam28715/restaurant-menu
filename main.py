@@ -2,19 +2,24 @@ import sqlite3
 from fastapi import FastAPI, Request, Body
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-import socketio # This is the python-socketio library for FastAPI
+import socketio 
 import uvicorn
+from datetime import datetime
 
 # --- DATABASE SETUP ---
 def init_db():
     conn = sqlite3.connect("orders.db")
     curr = conn.cursor()
-    curr.execute('''CREATE TABLE IF NOT EXISTS orders 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  table_num TEXT, 
-                  items TEXT, 
-                  total REAL, 
-                  status TEXT)''')
+    curr.execute('''
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            table_num TEXT,
+            items TEXT,
+            total REAL,
+            status TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -24,7 +29,7 @@ init_db()
 ADMIN_PASSWORD = "jugnuu_admin"
 app = FastAPI()
 
-# --- SOCKET.IO SETUP (FastAPI/ASGI Way) ---
+# --- SOCKET.IO SETUP ---
 sio = socketio.AsyncServer(async_mode='asgi', cors_allowed_origins='*')
 socket_app = socketio.ASGIApp(sio, app)
 templates = Jinja2Templates(directory="templates")
@@ -137,15 +142,71 @@ async def billing_page(request: Request):
     conn.close()
     return templates.TemplateResponse("billing.html", {"request": request, "active_orders": active_orders})
 
+@app.get("/sales")
+async def sales(request: Request):
+    if not is_logged_in(request): return RedirectResponse(url="/login")
+    
+    conn = sqlite3.connect("orders.db")
+    conn.row_factory = sqlite3.Row
+    curr = conn.cursor()
+
+    # 1. Lifetime Totals
+    curr.execute("SELECT SUM(total) as rev, COUNT(*) as cnt FROM orders WHERE status='Paid'")
+    res = curr.fetchone()
+    overall_rev_val = res['rev'] if res and res['rev'] else 0
+    overall_count = res['cnt'] if res and res['cnt'] else 0
+    total_revenue = f"{overall_rev_val:,.2f}"
+
+    # 2. Fetch Today's Data
+    curr.execute("SELECT * FROM orders WHERE status='Paid' AND date(created_at) = date('now', 'localtime') ORDER BY id DESC")
+    today_orders = [dict(row) for row in curr.fetchall()]
+    today_rev_val = sum(o['total'] for o in today_orders)
+    today_rev_str = f"{today_rev_val:,.2f}"
+
+    # 3. Fetch Weekly Data
+    curr.execute("SELECT * FROM orders WHERE status='Paid' AND date(created_at) >= date('now', '-7 days') ORDER BY id DESC")
+    week_orders = [dict(row) for row in curr.fetchall()]
+    week_rev_val = sum(o['total'] for o in week_orders)
+    week_rev_str = f"{week_rev_val:,.2f}"
+
+    # 4. Fetch Monthly Data
+    curr.execute("SELECT * FROM orders WHERE status='Paid' AND date(created_at) >= date('now', '-30 days') ORDER BY id DESC")
+    month_orders = [dict(row) for row in curr.fetchall()]
+    month_rev_val = sum(o['total'] for o in month_orders)
+    month_rev_str = f"{month_rev_val:,.2f}"
+
+    conn.close()
+
+    # We use the _str versions for the UI display
+    return templates.TemplateResponse("sales.html", {
+        "request": request,
+        "total_revenue": total_revenue,
+        "count": overall_count,
+        "today_orders": today_orders, 
+        "today_rev": today_rev_str,
+        "week_orders": week_orders, 
+        "week_rev": week_rev_str,
+        "month_orders": month_orders, 
+        "month_rev": month_rev_str
+    })
 @app.post("/order")
 async def place_order(data: dict = Body(...)):
     table = str(data.get("table", "1"))
     items = data.get("items", []) 
     total = data.get("total", 0)
     item_string = ", ".join([f"{i['name']} x{i.get('qty', 1)}" for i in items])
+    
+    # --- ADD THIS LINE TO GET CURRENT TIME ---
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     conn = sqlite3.connect("orders.db")
     curr = conn.cursor()
-    curr.execute("INSERT INTO orders (table_num, items, total, status) VALUES (?, ?, ?, ?)", (table, item_string, total, "Pending"))
+    # Add created_at to the INSERT statement
+    curr.execute("""
+        INSERT INTO orders (table_num, items, total, status, created_at) 
+        VALUES (?, ?, ?, ?, ?)
+    """, (table, item_string, total, "Pending", now))
+    
     new_id = curr.lastrowid 
     conn.commit()
     conn.close()
@@ -178,5 +239,4 @@ async def checkout_order(order_id: int):
     return {"status": "Table Cleared"}
 
 if __name__ == '__main__':
-    # For FastAPI/ASGI, we use uvicorn to run the socket_app wrapper
     uvicorn.run(socket_app, host='0.0.0.0', port=5000)
