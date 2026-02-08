@@ -1,4 +1,4 @@
 fastapi
 uvicorn
-gunicorn
-python-socketio
+jinja2
+python-multipart
